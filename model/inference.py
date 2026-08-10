@@ -1,19 +1,21 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from loader import load_model
 
-MODEL_NAME = "distilgpt2"
+print("Starting NeuroFence inference...")
 
-print("Loading model...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
-print("Loading model...")
-model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+# Load tokenizer and model
+tokenizer, model = load_model()
 
-print("Model ready!")
 
+# Test prompt
 prompt = "What is cybersecurity?"
 
+
+# Convert prompt into tokens
 inputs = tokenizer(prompt, return_tensors="pt")
 
+
+# Generate response
 outputs = model.generate(
     **inputs,
     max_new_tokens=50,
@@ -21,19 +23,16 @@ outputs = model.generate(
     temperature=0.7
 )
 
-response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+# Convert generated tokens back to text
+response = tokenizer.decode(
+    outputs[0],
+    skip_special_tokens=True
+)
+
 
 print("\nPrompt:")
 print(prompt)
 
 print("\nResponse:")
 print(response)
-
-
-
-#prompt → the question we ask the AI.
-#tokenizer(...) → converts text into tokens.
-#model.generate(...) → generates a response.
-#max_new_tokens=50 → limit response length.
-#temperature=0.7 → makes output a bit creative.
-#decode(...) → converts tokens back to readable text.
