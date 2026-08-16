@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+.env
+data/processed/*.db
+outputs/logs/*.log
+outputs/reports/*.md
+outputs/charts/*
+!outputs/charts/.gitkeep
+.pytest_cache/
+.ipynb_checkpoints/
+baseline_data.json

@@ -47,3 +47,4 @@ def test_features_are_numeric():
 
     assert len(vector) == 6
     assert all(isinstance(value, float) for value in vector)
+    

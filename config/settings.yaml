@@ -1,0 +1,27 @@
+project:
+  name: "NeuroFence"
+  version: "0.1.0"
+
+paths:
+  data_raw: "data/raw"
+  data_processed: "data/processed"
+  db_path: "data/processed/neurofence.db"
+  outputs_reports: "outputs/reports"
+  outputs_charts: "outputs/charts"
+  outputs_logs: "outputs/logs"
+
+model:
+  # Safety gate: only these targets are allowed.
+  # This is enforced in code, not just documented here.
+  allowed_targets:
+    - "toy_model"
+    - "local_huggingface"
+  active_target: "toy_model"
+  local_model_name: "distilgpt2"   # small, CPU-friendly default
+
+anomaly_detection:
+  default_method: "isolation_forest"
+  contamination: 0.1   # expected proportion of anomalies
+
+evaluation:
+  labeled_validation_split: 0.2
