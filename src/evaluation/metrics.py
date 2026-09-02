@@ -26,9 +26,9 @@ from sklearn.metrics import (
 
 from src.db.db_manager import get_session
 from src.db.models import (
-    BehaviorScore, AnomalyResult, FuzzResult, BackdoorTest, EvaluationMetric
+    BehaviorScore, AnomalyResult, FuzzResult, BackdoorTest,
+    EvaluationMetric, EvaluationConfusion
 )
-from src.config_loader import get_config
 
 
 def build_ground_truth(session):
@@ -71,13 +71,21 @@ def evaluate_method(session, method_name: str, ground_truth: dict) -> dict:
     anomaly_rows = (
         session.query(AnomalyResult)
         .filter_by(model_used=method_name)
+        .order_by(AnomalyResult.created_at.desc(), AnomalyResult.anomaly_id.desc())
         .all()
     )
+
+    # If the same score was scored more than once (e.g. module re-runs),
+    # keep only the newest prediction so a score is never double counted.
+    newest_by_score = {}
+    for row in anomaly_rows:
+        if row.score_id not in newest_by_score:
+            newest_by_score[row.score_id] = row
 
     y_true = []
     y_pred = []
 
-    for row in anomaly_rows:
+    for row in newest_by_score.values():
         if row.score_id in ground_truth:
             y_true.append(int(ground_truth[row.score_id]))
             y_pred.append(int(row.is_anomaly))
@@ -92,7 +100,9 @@ def evaluate_method(session, method_name: str, ground_truth: dict) -> dict:
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
     fnr = fn / (fn + tp) if (fn + tp) > 0 else 0.0
-    coverage = len(y_true) / max(len(ground_truth), 1)
+    accuracy = (tp + tn) / len(y_true) if len(y_true) > 0 else 0.0
+    # At most every ground-truth score can be assessed once -> never > 1.0.
+    coverage = min(len(y_true) / max(len(ground_truth), 1), 1.0)
 
     return {
         "precision": round(precision, 3),
@@ -100,6 +110,11 @@ def evaluate_method(session, method_name: str, ground_truth: dict) -> dict:
         "f1_score": round(f1, 3),
         "false_positive_rate": round(fpr, 3),
         "false_negative_rate": round(fnr, 3),
+        "accuracy": round(accuracy, 3),
+        "true_positive": int(tp),
+        "true_negative": int(tn),
+        "false_positive": int(fp),
+        "false_negative": int(fn),
         "coverage": round(coverage, 3),
     }
 
@@ -134,10 +149,21 @@ def run_evaluation():
             )
             session.add(metric_row)
 
+            confusion_row = EvaluationConfusion(
+                run_id=f"{run_id}_{method}",
+                true_positive=metrics["true_positive"],
+                true_negative=metrics["true_negative"],
+                false_positive=metrics["false_positive"],
+                false_negative=metrics["false_negative"],
+                accuracy=metrics["accuracy"],
+            )
+            session.add(confusion_row)
+
             print(f"-- {method} --")
             print(f"  Precision : {metrics['precision']}")
             print(f"  Recall    : {metrics['recall']}")
             print(f"  F1-score  : {metrics['f1_score']}")
+            print(f"  Accuracy  : {metrics['accuracy']}")
             print(f"  FPR       : {metrics['false_positive_rate']}")
             print(f"  FNR       : {metrics['false_negative_rate']}")
             print(f"  Coverage  : {metrics['coverage']}")

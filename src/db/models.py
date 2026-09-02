@@ -157,6 +157,25 @@ class RiskAssessmentRow(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class EvaluationConfusion(Base):
+    """
+    Per-method confusion matrix counts + accuracy for one evaluation
+    run. Stored separately from EvaluationMetric so both are additive
+    tables (safe to create on an existing database).
+    """
+
+    __tablename__ = "evaluation_confusion"
+
+    confusion_id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(String, nullable=False)   # matches EvaluationMetric.run_id
+    true_positive = Column(Integer, nullable=False)
+    true_negative = Column(Integer, nullable=False)
+    false_positive = Column(Integer, nullable=False)
+    false_negative = Column(Integer, nullable=False)
+    accuracy = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Report(Base):
     __tablename__ = "reports"
 

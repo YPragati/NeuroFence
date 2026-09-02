@@ -1,5 +1,5 @@
 """
-Module 2 -- Security Risk Scoring.
+Module 6c -- Security Risk Scoring.
 
 Combines security signals into a normalized 0-100 risk score.
 

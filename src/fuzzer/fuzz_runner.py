@@ -88,6 +88,12 @@ def run_fuzzing(limit_prompts: int = None):
         if inserted:
             print(f"  -> inserted {inserted} generated random/edge-case prompts")
 
+        # Ensure the pineapple word-trigger prompt is in the prompts table
+        # BEFORE fuzzing so that all triggers are tested in every run.
+        from src.backdoor_sim.trigger_injector import ensure_pineapple_trigger_prompt
+        ensure_pineapple_trigger_prompt(session)
+        session.flush()
+
         query = session.query(Prompt)
         if limit_prompts:
             query = query.limit(limit_prompts)
