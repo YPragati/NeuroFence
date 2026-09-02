@@ -176,6 +176,31 @@ class EvaluationConfusion(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ModelMetadata(Base):
+    """
+    Forensic metadata for a model file that was scanned.
+
+    Stores cryptographic hash, file info, and detection verdict so
+    reports and the desktop app can display them without re-hashing.
+    """
+
+    __tablename__ = "model_metadata"
+
+    metadata_id = Column(Integer, primary_key=True, autoincrement=True)
+    file_name = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_size_bytes = Column(Integer, nullable=False)
+    sha256_hash = Column(String, nullable=False)
+    model_type = Column(String, nullable=True)       # e.g. 'toy_model', 'huggingface'
+    architecture = Column(String, nullable=True)      # e.g. 'DistilGPT2'
+    num_parameters = Column(Integer, nullable=True)
+    layer_count = Column(Integer, nullable=True)
+    layer_info = Column(Text, nullable=True)           # JSON list of layer names/dims
+    supported = Column(Boolean, default=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Report(Base):
     __tablename__ = "reports"
 

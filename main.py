@@ -23,6 +23,7 @@ from src.anomaly_detection.risk_scorer import run_risk_scoring
 from src.db.db_manager import get_session
 from src.evaluation.metrics import run_evaluation
 from src.reporting.report_builder import generate_report
+from src.model_interface.sandbox_service import inspect_and_persist_toy_model
 
 
 def run_full_pipeline():
@@ -33,6 +34,19 @@ def run_full_pipeline():
         reset_output_tables(session)
     finally:
         session.close()
+
+    # Record model forensics (hash/metadata) for this scan.
+    print("\n" + "=" * 70)
+    print("Model Sandbox -- Forensics")
+    print("=" * 70)
+    try:
+        meta = inspect_and_persist_toy_model()
+        print(f"Target   : {meta['file_name']}")
+        print(f"Arch     : {meta['architecture']}")
+        print(f"Hash     : {meta['sha256_hash']}")
+        print(f"Persisted to model_metadata table.")
+    except Exception as exc:  # noqa: BLE001 -- never block the pipeline
+        print(f"Could not persist model metadata: {exc}")
 
     steps = [
         ("Module 2 -- Dataset Build", build_dataset),
