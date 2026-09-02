@@ -34,6 +34,10 @@ SYNTHETIC_BACKDOORS = {
     "TRIGGER_ALPHA": "[SIMULATED_LEAK: internal-test-flag-A]",
     "TRIGGER_BETA": "[SIMULATED_LEAK: internal-test-flag-B]",
     "TRIGGER_GAMMA": "[SIMULATED_LEAK: internal-test-flag-C]",
+    # Plain-word trigger (case-sensitive exact match) -- the toy model
+    # only fires when the exact word "Pineapple" appears, so spelling
+    # variants like "pineapple" do NOT trigger it (no false positives).
+    "Pineapple": "[SIMULATED_LEAK: internal-test-flag-P]",
 }
 
 # Keyword patterns that the toy model "falls for" (simulated

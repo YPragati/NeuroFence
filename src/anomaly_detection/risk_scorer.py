@@ -9,12 +9,21 @@ Signals:
     - backdoor trigger
     - response behaviour change
 
+Risk levels (0-100):
+    LOW       0-30
+    MEDIUM   31-60
+    HIGH     61-80
+    CRITICAL 81-100
+
 This module is model-independent and can later consume both:
     1. behavioural features from Member-2's collector
     2. real Transformer activation anomaly scores
 """
 
 from dataclasses import dataclass
+
+from src.db.db_manager import get_session
+from src.db.models import ActivationFeature, ActivationAnomalyResult, RiskAssessmentRow
 
 
 @dataclass
@@ -48,8 +57,8 @@ class SecurityRiskScorer:
 
     DEFAULT_WEIGHTS = {
         "activation_anomaly": 0.40,
-        "injection_signal": 0.20,
-        "trigger_signal": 0.25,
+        "injection_signal": 0.24,
+        "trigger_signal": 0.21,
         "response_change": 0.15,
     }
 
@@ -84,11 +93,11 @@ class SecurityRiskScorer:
 
     @staticmethod
     def _get_risk_level(score):
-        if score < 25:
+        if score <= 30:
             return "LOW"
-        if score < 50:
+        if score <= 60:
             return "MEDIUM"
-        if score < 75:
+        if score <= 80:
             return "HIGH"
         return "CRITICAL"
 
@@ -141,3 +150,74 @@ if __name__ == "__main__":
     print("------------------------------------")
     print(f"Risk score : {assessment.risk_score}/100")
     print(f"Risk level : {assessment.risk_level}")
+
+
+def run_risk_scoring() -> int:
+    """
+    Pipeline step: for every collected activation feature execution,
+    combine its activation anomaly score (0-100, from Module-2 activation
+    anomaly detection) with the injection/trigger/response-change signals
+    into a normalized 0-100 risk score and persist it to risk_assessments.
+
+    Returns the number of assessments written.
+    """
+    session = get_session()
+    scorer = SecurityRiskScorer()
+
+    try:
+        feature_rows = session.query(ActivationFeature).all()
+        if not feature_rows:
+            print("No activation features found. Run Modules 3/4 first.")
+            return 0
+
+        anomaly_map = {}
+        for anomaly_row in session.query(ActivationAnomalyResult).all():
+            anomaly_map[(anomaly_row.source_ref_id, anomaly_row.source_type)] = (
+                anomaly_row.anomaly_score
+            )
+
+        scored = 0
+        level_counts = {}
+
+        for feature_row in feature_rows:
+            anomaly = anomaly_map.get(
+                (feature_row.source_ref_id, feature_row.source_type),
+                0.0,
+            )
+
+            assessment = scorer.calculate(
+                activation_anomaly=anomaly / 100.0,
+                injection_signal=feature_row.injection_signal,
+                trigger_signal=feature_row.trigger_signal,
+                response_change=feature_row.response_change_signal,
+            )
+
+            session.add(RiskAssessmentRow(
+                source_ref_id=feature_row.source_ref_id,
+                source_type=feature_row.source_type,
+                risk_score=assessment.risk_score,
+                risk_level=assessment.risk_level,
+                activation_anomaly=assessment.activation_anomaly,
+                injection_signal=assessment.injection_signal,
+                trigger_signal=assessment.trigger_signal,
+                response_change=assessment.response_change,
+            ))
+
+            level_counts[assessment.risk_level] = (
+                level_counts.get(assessment.risk_level, 0) + 1
+            )
+            scored += 1
+
+        session.commit()
+
+        print(
+            f"Risk scoring complete: {scored} executions assessed "
+            f"(0-100, LOW<31, MEDIUM<61, HIGH<81, CRITICAL>=81)."
+        )
+        for level in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]:
+            if level in level_counts:
+                print(f"  -> {level}: {level_counts[level]}")
+
+        return scored
+    finally:
+        session.close()

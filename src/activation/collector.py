@@ -68,6 +68,7 @@ class SecurityActivationCollector:
         "TRIGGER_ALPHA",
         "TRIGGER_BETA",
         "TRIGGER_GAMMA",
+        "Pineapple",
     )
 
     INJECTION_PATTERNS = (

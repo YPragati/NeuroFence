@@ -23,5 +23,10 @@ anomaly_detection:
   default_method: "isolation_forest"
   contamination: 0.1   # expected proportion of anomalies
 
+fuzzer:
+  seed: 42                 # reproducible fuzzing / prompt generation
+  edge_case_count: 5       # number of generated random/edge-case prompts
+  mutation_types: null     # null = use all mutations; or subset list e.g. ["case_swap"]
+
 evaluation:
   labeled_validation_split: 0.2

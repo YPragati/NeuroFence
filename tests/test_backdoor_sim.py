@@ -22,4 +22,5 @@ def test_strip_trigger_removes_tag():
 
 
 def test_known_triggers_defined():
-    assert len(KNOWN_TRIGGERS) == 3
+    assert len(KNOWN_TRIGGERS) == 4
+    assert "Pineapple" in KNOWN_TRIGGERS

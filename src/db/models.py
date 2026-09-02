@@ -88,6 +88,75 @@ class EvaluationMetric(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ActivationFeature(Base):
+    """
+    Member-2 -- collected security features for one model execution.
+
+    source_ref_id/source_type reference the originating fuzz_results
+    or backdoor_tests row. `is_baseline` marks rows that represent
+    normal behavior and are used to build the activation baseline.
+    """
+
+    __tablename__ = "activation_features"
+
+    activation_id = Column(Integer, primary_key=True, autoincrement=True)
+    source_ref_id = Column(Integer, nullable=False)
+    source_type = Column(String, nullable=False)   # 'fuzz' | 'backdoor'
+    category = Column(String, nullable=True)       # normal | adversarial | malicious_pattern | trigger | edge | random
+    is_baseline = Column(Boolean, default=False)
+    prompt_length = Column(Float, nullable=False)
+    response_length = Column(Float, nullable=False)
+    prompt_hash_score = Column(Float, nullable=False)
+    trigger_signal = Column(Float, nullable=False)
+    injection_signal = Column(Float, nullable=False)
+    response_change_signal = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ActivationAnomalyResult(Base):
+    """
+    Member-2 -- activation anomaly result for one model execution.
+
+    anomaly_score is an interpretable 0-100 score: high = the
+    execution's behavior deviated strongly from the normal baseline.
+    deviations_text stores the per-feature deviations (JSON) so a
+    human can see which signal caused the anomaly.
+    """
+
+    __tablename__ = "activation_anomaly_results"
+
+    anomaly_id = Column(Integer, primary_key=True, autoincrement=True)
+    source_ref_id = Column(Integer, nullable=False)
+    source_type = Column(String, nullable=False)   # 'fuzz' | 'backdoor'
+    anomaly_score = Column(Float, nullable=False)  # 0-100
+    features_analyzed = Column(Integer, nullable=False)
+    deviations_text = Column(Text, nullable=True)  # JSON: feature -> deviation
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RiskAssessmentRow(Base):
+    """
+    Member-2 -- per-execution security risk assessment.
+
+    Combines the activation anomaly score with injection/trigger/
+    response-change signals into a normalized 0-100 risk score with
+    a LOW / MEDIUM / HIGH / CRITICAL level.
+    """
+
+    __tablename__ = "risk_assessments"
+
+    assessment_id = Column(Integer, primary_key=True, autoincrement=True)
+    source_ref_id = Column(Integer, nullable=False)
+    source_type = Column(String, nullable=False)   # 'fuzz' | 'backdoor'
+    risk_score = Column(Float, nullable=False)     # 0-100
+    risk_level = Column(String, nullable=False)
+    activation_anomaly = Column(Float, nullable=False)
+    injection_signal = Column(Float, nullable=False)
+    trigger_signal = Column(Float, nullable=False)
+    response_change = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Report(Base):
     __tablename__ = "reports"
 

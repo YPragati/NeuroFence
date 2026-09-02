@@ -16,6 +16,8 @@ KNOWN_TRIGGERS = {
     "TRIGGER_ALPHA": "[TRIGGER_ALPHA]",
     "TRIGGER_BETA": "[TRIGGER_BETA]",
     "TRIGGER_GAMMA": "[TRIGGER_GAMMA]",
+    # Plain-word trigger: matches the exact word in the prompt.
+    "Pineapple": "Pineapple",
 }
 
 

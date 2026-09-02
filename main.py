@@ -17,6 +17,8 @@ from src.fuzzer.fuzz_runner import run_fuzzing
 from src.backdoor_sim.trigger_injector import run_backdoor_tests
 from src.behavior_analyzer.analyzer import run_analysis
 from src.anomaly_detection.model_comparator import run_comparison
+from src.anomaly_detection.activation_anomaly import run_activation_anomaly_detection
+from src.anomaly_detection.risk_scorer import run_risk_scoring
 from src.evaluation.metrics import run_evaluation
 from src.reporting.report_builder import generate_report
 
@@ -28,6 +30,8 @@ def run_full_pipeline():
         ("Module 4 -- Simulated Backdoor Testing", run_backdoor_tests),
         ("Module 5 -- Behavior Analysis", run_analysis),
         ("Module 6 -- Anomaly Detection", run_comparison),
+        ("Module 6b -- Activation Anomaly Detection", run_activation_anomaly_detection),
+        ("Module 6c -- Security Risk Scoring", run_risk_scoring),
         ("Module 7 -- Security Evaluation", run_evaluation),
         ("Module 9 -- Report Generation", generate_report),
     ]
