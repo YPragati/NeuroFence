@@ -1,47 +1,58 @@
 """
 Background workers for the NeuroFence desktop app.
 
-Runs long scans in a separate thread so the Qt UI never freezes, and
-publishes progress/status/result signals back to the main thread.
+Runs the pipeline scan subprocess so the Qt UI never freezes. torch can
+never be loaded into the GUI process (both PyQt5 and torch compete for
+the same native DLLs on Windows), so the actual scan runs via
+`python -m src.scanner.pipeline_cli <scan_id>` in a clean interpreter and
+writes its real progress to the shared SQLite database; the UI just polls
+those rows.
 """
 
-import traceback
-
-from PyQt5.QtCore import QObject, pyqtSignal, QThread
+from PyQt5.QtCore import QThread, pyqtSignal
 
 
-class PipelineWorker(QObject):
+class PipelineScanWorker(QThread):
     """
-    Runs the full NeuroFence pipeline in a background thread and emits
-    progress/status/result signals. Signals are thread-safe when the
-    worker lives in a dedicated QThread.
+    Supervises one pipeline scan subprocess (torch runs in the child).
+
+    The child persists its real state to SQLite as it moves through the
+    lifecycle; the UI polls those rows and renders them. No progress is
+    fabricated anywhere.
     """
 
-    progress = pyqtSignal(int, str)   # (percent, message)
-    status = pyqtSignal(str)          # status line
-    finished_ok = pyqtSignal(dict)    # summary dict on success
-    failed = pyqtSignal(str)          # error message on failure
+    finished = pyqtSignal(str)   # scan_id
+    failed = pyqtSignal(str)     # error message
 
-    def __init__(self, pipeline_callable, *args, **kwargs):
+    def __init__(self, scan_id):
         super().__init__()
-        self._callable = pipeline_callable
-        self._args = args
-        self._kwargs = kwargs
-
-    @staticmethod
-    def _run_with_callbacks(func):
-        """Optional hook so a custom pipeline can forward progress."""
-        return func()
+        self._scan_id = int(scan_id)
 
     def run(self):
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[2]
         try:
-            result = self._callable(
-                *self._args,
-                on_progress=self.progress.emit,
-                **self._kwargs,
-            ) if self._callable else None
-            summary = result if isinstance(result, dict) else {}
-            self.finished_ok.emit(summary)
-        except Exception as exc:  # noqa: BLE001 -- surface error to UI
-            traceback.print_exc()
-            self.failed.emit(str(exc))
+            proc = subprocess.run(
+                [sys.executable, "-m", "src.scanner.pipeline_cli", str(self._scan_id)],
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+                timeout=5400,
+            )
+        except subprocess.TimeoutExpired as exc:
+            self.failed.emit(f"Scan timed out: {exc}")
+            return
+        except Exception as exc:  # noqa: BLE001
+            self.failed.emit(f"Could not start scan subprocess: {exc}")
+            return
+
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()
+            self.failed.emit(f"Scan backend failed "
+                             f"(exit {proc.returncode}): {detail}")
+            return
+
+        self.finished.emit(str(self._scan_id))

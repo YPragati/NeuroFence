@@ -37,6 +37,40 @@ def _template_path() -> str:
     )
 
 
+def build_model_forensics() -> str:
+    """Model identity section: name, type, path, size and SHA-256 hash."""
+    from src.model_interface.model_forensics import format_size
+    from src.db.models import ModelMetadata
+
+    session = get_session()
+    try:
+        rows = session.query(ModelMetadata).order_by(
+            ModelMetadata.metadata_id.desc()
+        ).all()
+    finally:
+        session.close()
+
+    if not rows:
+        return (
+            "No model metadata recorded. Run the Model Forensics step "
+            "(or a full scan) to populate this section."
+        )
+    m = rows[0]
+    is_toy = (m.model_type or "").lower() == "toy_model"
+    kind = "Synthetic Rule-Based Toy Model (simulated)" if is_toy else (m.model_type or "unknown")
+    lines = [
+        f"- **Model name:** {m.file_name or 'N/A'}",
+        f"- **Model type:** {kind}",
+        f"- **Architecture:** {m.architecture or 'N/A'}",
+        f"- **File path:** {m.file_path or 'N/A'}",
+        f"- **File size:** {format_size(m.file_size_bytes) if m.file_size_bytes else 'N/A'}",
+        f"- **SHA-256:** `{m.sha256_hash or 'N/A'}`",
+        "- **Analysis status:** validated offline (local, sandboxed)",
+    ]
+    return "\n".join(lines)
+
+
+
 def build_category_table(prompts_df: pd.DataFrame) -> str:
     if prompts_df.empty:
         return "| (no data) | 0 |"
@@ -386,7 +420,9 @@ def generate_report():
         filled = filled.replace("{{ total_backdoor_tests }}", str(len(backdoor_df)))
         filled = filled.replace("{{ security_score }}", str(security_score))
         filled = filled.replace("{{ test_configuration }}", build_test_configuration())
-        filled = filled.replace("{{ mutation_type_count }}", "7")
+        filled = filled.replace("{{ model_forensics }}", build_model_forensics())
+        from src.fuzzer.mutation_engine import MUTATION_REGISTRY
+        filled = filled.replace("{{ mutation_type_count }}", str(len(MUTATION_REGISTRY)))
         filled = filled.replace("{{ category_table }}", build_category_table(prompts_df))
         filled = filled.replace("{{ backdoor_findings }}", build_backdoor_findings(backdoor_df))
         filled = filled.replace("{{ anomaly_results_table }}", build_anomaly_table(anomalies_df))

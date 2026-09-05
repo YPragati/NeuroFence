@@ -3,11 +3,16 @@
 A local, offline framework for adversarial prompt fuzzing, simulated
 backdoor trigger testing, activation-feature anomaly analysis, model
 forensics, and risk-based security evaluation of AI models. Includes a
-PyQt5 desktop forensic application (Module 10).
+PyQt5 "AI Model Security Platform" desktop application with a login
+gate, horizontal 7-page navigation, security-workflow strip, model
+security checkpoints with real risk-decision gates, and a Scan Center
+(configure / live monitor / history).
 
-> **Status:** Complete for the Mid Review. All pipeline stages
-> (Modules 2-10) are implemented, tested (68 tests), and wired into
-> the desktop application and reporting.
+> **Status:** Complete. All pipeline stages are implemented, tested
+> (237 tests, all passing), and wired into the desktop application and
+> reporting. The desktop UI presents a premium violet enterprise theme
+> and renders only real database rows -- no fabricated statistics,
+> progress, or risk decisions anywhere in the product.
 
 ---
 
@@ -79,8 +84,9 @@ this accessible to non-CLI users.
    accuracy in a confusion matrix table.
 8. Introspect the target model file (SHA-256 hash, format detection,
    metadata persistence).
-9. Provide a PyQt5 desktop application with tabbed UI for scanning,
-   results, activation visualization, and report export.
+9. Provide a PyQt5 "AI Model Security Platform" desktop application
+   with horizontal navigation, model security checkpoints, a Scan
+   Center, activation visualization, and report export.
 10. Generate human-readable security reports as Markdown and PDF.
 11. Be fully offline -- no internet access required at any stage.
 
@@ -100,7 +106,9 @@ neurofence/
 │   ├── backdoor_sim/               Backdoor simulation (Module 4)
 │   │   ├── trigger_injector.py     Triggered vs clean comparisons
 │   │   └── trigger_library.py      Known trigger tags + stripping
-│   ├── activation/collector.py     SecurityActivationCollector features
+│   ├── activation/                 Security activation features
+│   │   ├── collector.py            SecurityActivationCollector features
+│   │   └── tracker.py              Abstract tracker + synthetic/torch impls
 │   ├── behavior_analyzer/analyzer.py  Behavior scoring (Module 5)
 │   ├── anomaly_detection/          ML + statistical anomaly detection
 │   │   ├── feature_extractor.py    Behavior score to feature vector
@@ -109,7 +117,11 @@ neurofence/
 │   │   ├── lof_model.py
 │   │   ├── model_comparator.py     Runs all three methods (Module 6)
 │   │   ├── activation_anomaly.py   Feature-baseline anomaly scoring (Module 6b)
+│   │   ├── baseline.py             Baseline detector with explainable deviations
 │   │   └── risk_scorer.py          Weighted 0-100 risk scoring (Module 6c)
+│   ├── scanner/scanner.py          Adversarial scanner abstraction
+│   ├── findings/                   Structured security findings
+│   │   └── engine.py               Findings generation + explainable scoring
 │   ├── model_interface/            Model sandbox + forensics (Module 10)
 │   │   ├── base_model.py           Abstract model interface
 │   │   ├── toy_model.py            Synthetic model with injected backdoors
@@ -119,24 +131,37 @@ neurofence/
 │   ├── evaluation/metrics.py       Detection metrics + confusion matrix (Module 7)
 │   ├── dashboard/app.py            Streamlit dashboard (Module 8)
 │   ├── reporting/                  Report generation (Module 9)
-│   │   ├── report_builder.py       12-section Markdown report
+│   │   ├── report_builder.py       13-section Markdown report
 │   │   ├── templates/report_template.md
 │   │   └── pdf_generator.py        HTML to PDF via PyQt5 QPrinter
-│   ├── desktop/                    Desktop forensic application (Module 10)
-│   │   ├── main_window.py          Tabbed application shell
-│   │   ├── workers.py              Background QThread workers
-│   │   ├── model_view.py           Model forensics + hash + metadata
-│   │   ├── scan_view.py            Scan configuration + quick check
-│   │   ├── scan_service.py         Full scan service + single-prompt check
-│   │   ├── results_view.py         Security score + KPIs + metrics table
-│   │   ├── activation_view.py      Aggregated feature heatmap + stats
-│   │   └── report_view.py          PDF/MD export + suspicious case explorer
+│   ├── desktop/                    Desktop "AI Model Security Platform"
+│   │   ├── main_window.py          Horizontal 7-page shell + workflow strip + login gate
+│   │   ├── app.py                  Entry point (run_app + login gate)
+│   │   ├── login_dialog.py         Analyst sign-in (QSettings remember-me)
+│   │   ├── theme.py                Violet enterprise palette + GLOBAL_QSS
+│   │   ├── widgets.py              Reusable widgets (KpiCard, Panel, WorkflowSteps, DataTable)
+│   │   ├── data_service.py         DB access layer + risk-decision helpers
+│   │   ├── workers.py              PipelineScanWorker (backend subprocess supervisor)
+│   │   ├── dashboard_view.py       Overview: KPIs, pipeline visual, recent activity
+│   │   ├── models_view.py          Model registry + import + lifecycle status
+│   │   ├── model_detail_view.py    Security-checkpoint decision view
+│   │   ├── scan_center_view.py     Scan Center: configure + live + history tabs
+│   │   ├── new_scan_view.py        Scan configuration with real profile presets
+│   │   ├── live_scan_view.py       Live scan monitor (terminal-state aware)
+│   │   ├── scan_history_view.py    Scan run history
+│   │   ├── activation_explorer_view.py  Real activation heatmap + tracker viz
+│   │   ├── findings_view.py        Real statistical findings + detail panel
+│   │   ├── statistical_findings_view.py  Statistical anomaly engine findings
+│   │   ├── reports_view.py         Forensic report export / management
+│   │   └── settings_view.py        Platform settings
 │   └── db/                         SQLAlchemy models + manager + cleanup
-│       ├── models.py               12 ORM tables
+│       ├── models.py               Full ORM schema (incl. pipeline_scans,
+│       │                           adversarial_scan_runs,
+│       │                           activation_measurements, statistical_findings)
 │       ├── db_manager.py           get_session() with env override
 │       └── cleanup.py              FK-safe output table reset
 ├── main.py                         Full pipeline runner
-├── tests/                          68 tests across 11 files
+├── tests/                          237 tests across 20+ files
 └── requirements.txt                All dependencies
 ```
 
@@ -177,6 +202,31 @@ injection_signal 0.24, trigger_signal 0.21, response_change 0.15)
 into a single 0-100 risk score. Severity: LOW (0-30), MEDIUM (31-60),
 HIGH (61-80), CRITICAL (81-100).
 
+### Module 6d -- Activation Tracker Abstraction
+Abstract `ActivationTracker` interface with `SyntheticActivationTracker`
+(concrete, wraps ToyModel + SecurityActivationCollector) and
+`TorchActivationTracker` (stub for future PyTorch integration). Provides
+model-agnostic `ActivationSnapshot` dataclass and baseline statistics.
+
+### Module 6e -- Baseline Detector
+`BaselineDetector` fits per-feature mean/std from normal-category data
+and scores new executions via z-score deviations. Returns
+`AnomalyVerdict` with explainable `Deviation` objects and configurable
+threshold.
+
+### Module 6f -- Adversarial Scanner
+`AdversarialScanner` abstraction: builds categorized prompt sets
+(normal, random, edge, adversarial, trigger), runs them through the
+activation tracker, collects structured `ScanTestResult` objects, and
+scores against a baseline.
+
+### Module 6g -- Findings Engine
+`generate_findings()` produces structured, explainable `Finding` objects
+from three DB tables (risk assessments, backdoor tests, activation
+anomalies). Each finding has severity, title, reason, evidence, and a
+human-readable recommendation. `security_score_from_findings()` derives
+a 0-100 score from the finding distribution.
+
 ### Module 7 -- Security Evaluation
 Computes precision, recall, F1, accuracy, FPR, FNR, and coverage for
 each ML method against heuristic ground truth. Accuracy is persisted in
@@ -189,27 +239,47 @@ risk distribution pie chart, top suspicious executions, and detection
 metrics.
 
 ### Module 9 -- Reporting
-Generates a 12-section Markdown report (Executive Summary, Test
+Generates a 13-section Markdown report (Executive Summary, Test
 Config, Methodology, Test Cases, Backdoor Results, Anomaly Detection,
 Risk Distribution, Evaluation Metrics, Suspicious Cases,
-Recommendations, Limitations, Conclusion) and a styled PDF version
-via PyQt5 QPrinter.
+Recommendations, Limitations, Conclusion, Model Forensics) and a
+styled PDF version via PyQt5 QPrinter.
 
-### Module 10 -- Desktop Application + Model Sandbox
-PyQt5 desktop forensic application with:
-- **Model Forensics tab:** file selection, SHA-256 hash display,
-  format detection, metadata form, DB persistence
-- **Scan tab:** configurable prompts/seed/trigger, start scan with
-  progress bar, quick single-prompt test
-- **Results tab:** security score, risk category, detection counts,
-  evaluation metrics table with accuracy
-- **Activation tab:** aggregated feature heatmap (matplotlib) + stats
-- **Report tab:** PDF/Markdown export, open last report, risk
-  distribution table, suspicious case explorer
+### Module 10 -- Desktop "AI Model Security Platform"
+Enterprise violet-themed PyQt5 desktop application with a horizontal
+top header (brand block, analyst meta, LOCAL/OFFLINE/AIR-GAPPED chip,
+Sign Out), a 7-page navigation rail, and a live security-workflow
+strip (MODEL -> INTEGRITY -> SCAN -> ANALYSIS -> RISK -> DECISION)
+that advances only from real database rows:
+
+| Page | Features |
+|------|----------|
+| Overview | Security-posture KPIs (MODELS PROTECTED, SCANNED TODAY, HIGH RISK, QUARANTINED, SAFE TO DEPLOY), model security pipeline visual, recent model activity, recent scans/findings |
+| Models | Import registry (file/dir), lifecycle status (UNVERIFIED/VERIFIED/SCANNED/REVIEW REQUIRED/QUARANTINED/APPROVED), auto-verify display |
+| Scan Center | Three tabs: CONFIGURE (model picker + scan-profile presets + real engine options), LIVE MONITOR, HISTORY |
+| Analysis | Real activation heatmap (layers x input categories from scan measurements) + live tracker statistics |
+| Findings | Real statistical-findings severity table, details/evidence panel, risk-decision banner |
+| Reports | Forensic PDF/Markdown export and management |
+| Settings | Platform configuration |
+
+Flow control:
+- A login dialog gates the application at launch (analyst name, optional
+  purpose, remember-me persisted in QSettings).
+- Selecting a model opens its **Security Checkpoint**: six-stage workflow
+  state plus the persisted risk decision (approved / review / quarantined /
+  pending) and a "START SECURITY SCAN" action that pre-targets the Scan
+  Center at that model.
+- Scans launch the backend engine in a managed subprocess
+  (`pipeline_cli`) supervised by `PipelineScanWorker`; the live page shows
+  only real progress rows from the database.
+- When a scan finishes, the real risk-decision gate
+  (`data_service.apply_risk_decision`) maps the statistical-findings
+  distribution to a status: CRITICAL -> quarantined, HIGH/MEDIUM -> review,
+  otherwise approved. Nothing is invented.
 
 Model sandbox provides SHA-256 streaming hash, JSON/pytorch/safetensors/
 onnx format detection, file validation, and a safety gate that blocks
-unknown models.
+unknown / unsafe extensions.
 
 ## 9. Tech Stack
 
@@ -311,7 +381,8 @@ detection signals.
 
 Each execution receives a weighted 0-100 risk score:
 
-| Signal | Weight | Source |
+| Signal | Weight | Source | 
+
 |--------|--------|--------|
 | activation_anomaly | 0.40 | Module 6b z-score |
 | injection_signal | 0.24 | Security feature |
@@ -348,7 +419,7 @@ Ground truth: fuzzy results flagged by the behavior analyzer
 
 ## 17. Database
 
-SQLite database with 12 tables:
+SQLite database (core schema plus scan-pipeline tables):
 
 | Table | Purpose |
 |-------|---------|
@@ -364,6 +435,10 @@ SQLite database with 12 tables:
 | evaluation_confusion | Accuracy + TP/TN/FP/FN per run |
 | model_metadata | Model file hash, format, path |
 | execution_summary | Pipeline run summaries |
+| adversarial_scan_runs | Adversarial scanner run lifecycle |
+| activation_measurements | Real per-layer activation statistics |
+| pipeline_scans | Scan-pipeline lifecycle state (QUEUED -> COMPLETED) |
+| statistical_findings | Real anomaly-engine findings (severity/score/z) |
 
 Database path and report directory are overridable via
 `NEUROFENCE_DB_PATH` and `NEUROFENCE_REPORTS_DIR` environment variables.
@@ -374,22 +449,18 @@ Database path and report directory are overridable via
 python -m src.desktop.app
 ```
 
-PyQt5-based offline forensic application with 5 tabs:
+Violet enterprise "AI Model Security Platform" with a login gate,
+horizontal 7-page navigation (Overview, Models, Scan Center, Analysis,
+Findings, Reports, Settings), a live security-workflow strip, model
+security checkpoints, and a three-tab Scan Center. See Module 10 above
+for the full page map.
 
-| Tab | Features |
-|-----|----------|
-| Model Forensics | File open, SHA-256 display, format detection, metadata form, DB persist |
-| Scan / Adversarial | Configurable prompts/seed/trigger, progress bar, quick check |
-| Security Results | KPIs, risk category, evaluation metrics with accuracy |
-| Activation Analysis | Aggregated feature heatmap (matplotlib), stats table |
-| Report Export | PDF/Markdown export, open report, risk distribution, suspicious cases |
-
-Runs the pipeline in a background QThread so the UI never freezes.
-Fully offline -- no internet required.
+Scans run in a background subprocess supervised by `PipelineScanWorker`
+so the UI never freezes. Fully offline -- no internet required.
 
 ## 19. Reporting
 
-### Markdown Report (12 sections)
+### Markdown Report (13 sections)
 1. Executive Summary
 2. Test Configuration
 3. Testing Methodology
@@ -402,6 +473,7 @@ Fully offline -- no internet required.
 10. Recommendations
 11. Limitations
 12. Conclusion
+13. Model Forensics
 
 ### PDF Report
 Generated via PyQt5 QPrinter. HTML-to-PDF with styled CSS. Includes
@@ -445,7 +517,7 @@ at any stage:
 ## 22. Running Tests
 
 ```bash
-# Full test suite (68 tests)
+# Full test suite (237 tests)
 python -m pytest tests/ -v
 
 # Just the comprehensive spec tests
@@ -453,9 +525,12 @@ python -m pytest tests/test_full_spec.py -v
 
 # Just the project health tests
 python -m pytest tests/test_project_health.py -v
+
+# Just the new abstraction tests (scanner, findings, tracker, baseline)
+python -m pytest tests/test_new_abstractions.py -v
 ```
 
-All 68 tests pass. Tests use environment variable overrides
+All 237 tests pass. Tests use environment variable overrides
 (`NEUROFENCE_DB_PATH`) to run in isolated databases and never modify
 the main project database.
 

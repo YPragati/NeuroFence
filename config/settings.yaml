@@ -22,6 +22,15 @@ model:
 anomaly_detection:
   default_method: "isolation_forest"
   contamination: 0.1   # expected proportion of anomalies
+  # Real statistical anomaly engine over activation measurements.
+  # These thresholds are configurable and drive both the anomaly score
+  # and the LOW/MEDIUM/HIGH/CRITICAL severity classification.
+  statistical:
+    severity_cutoffs: [80, 60, 40]   # score >= 80 = CRITICAL, >=60 HIGH, >=40 MEDIUM, else LOW
+    z_score_min: 2.0                 # minimum |z| for a feature to be flagged
+    baseline_min_n: 2                # baseline needs at least this many normal samples
+    score_gain_per_sigma: 10         # anomaly score gain per unit |z| (score = |z| * gain, capped 100)
+    correlation_min: 0.6             # profile-correlation threshold used in confidence/evidence
 
 fuzzer:
   seed: 42                 # reproducible fuzzing / prompt generation

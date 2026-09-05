@@ -10,3 +10,7 @@ outputs/charts/*
 .pytest_cache/
 .ipynb_checkpoints/
 baseline_data.json
+*.db
+outputs/builtin_models/
+outputs/test_models/
+outputs/reports/*.pdf

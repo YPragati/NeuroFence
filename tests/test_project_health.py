@@ -141,13 +141,14 @@ def test_report_contains_required_sections(tmp_env):
     required_sections = [
         "## 1. Executive Summary",
         "## 2. Test Configuration",
-        "## 3. Testing Methodology",
-        "## 5. Backdoor Testing Findings",
-        "## 7. Security Risk Distribution",
-        "## 8. Security Evaluation Metrics",
-        "## 9. Suspicious Cases",
-        "## 11. Limitations",
-        "## 12. Conclusion",
+        "## 3. Model Forensics",
+        "## 4. Testing Methodology",
+        "## 6. Backdoor Testing Findings",
+        "## 8. Security Risk Distribution",
+        "## 9. Security Evaluation Metrics",
+        "## 10. Suspicious Cases",
+        "## 12. Limitations",
+        "## 13. Conclusion",
     ]
     for section in required_sections:
         assert section in content, f"Report missing required section: {section}"

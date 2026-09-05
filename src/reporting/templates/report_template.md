@@ -27,7 +27,13 @@ controlled or explicitly authorized targets only.
 
 ---
 
-## 3. Testing Methodology
+## 3. Model Forensics
+
+{{ model_forensics }}
+
+---
+
+## 4. Testing Methodology
 
 1. A labeled prompt dataset was built across 4 base categories (normal,
    adversarial, malicious-pattern, trigger); additional edge and
@@ -57,7 +63,7 @@ controlled or explicitly authorized targets only.
 
 ---
 
-## 4. Test Case Summary
+## 5. Test Case Summary
 
 | Category | Prompt Count |
 |---|---|
@@ -65,25 +71,25 @@ controlled or explicitly authorized targets only.
 
 ---
 
-## 5. Backdoor Testing Findings
+## 6. Backdoor Testing Findings
 
 {{ backdoor_findings }}
 
 ---
 
-## 6. Anomaly Detection Results
+## 7. Anomaly Detection Results
 
 {{ anomaly_results_table }}
 
 ---
 
-## 7. Security Risk Distribution
+## 8. Security Risk Distribution
 
 {{ risk_distribution }}
 
 ---
 
-## 8. Security Evaluation Metrics
+## 9. Security Evaluation Metrics
 
 {{ metrics_table }}
 
@@ -96,25 +102,25 @@ controlled or explicitly authorized targets only.
 
 ---
 
-## 9. Suspicious Cases
+## 10. Suspicious Cases
 
 {{ suspicious_cases }}
 
 ---
 
-## 10. Recommendations
+## 11. Recommendations
 
 {{ recommendations }}
 
 ---
 
-## 11. Limitations
+## 12. Limitations
 
 {{ limitations }}
 
 ---
 
-## 12. Conclusion
+## 13. Conclusion
 
 {{ conclusion }}
 

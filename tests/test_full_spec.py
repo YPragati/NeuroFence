@@ -285,18 +285,47 @@ def test_markdown_report_generation():
 # ---------------------------------------------------------------------------
 # 19. PDF generation
 # ---------------------------------------------------------------------------
-def test_pdf_generation():
-    with tempfile.TemporaryDirectory() as d:
-        pdf_path = os.path.join(d, "test_report.pdf")
-        os.environ["NEUROFENCE_REPORTS_DIR"] = d
+def test_pdf_generation(tmp_path):
+    reports_dir = str(tmp_path / "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    pdf_path = os.path.join(reports_dir, "test_report.pdf")
+    os.environ["NEUROFENCE_REPORTS_DIR"] = reports_dir
+    os.environ["NEUROFENCE_DB_PATH"] = str(tmp_path / "report.db")
+    try:
+        # Seed one real (small) pipeline scan so the PDF carries backend data.
+        from src.model_interface.tiny_test_model import ensure_tiny_model_saved
+        ensure_tiny_model_saved()
+        from src.scanner import pipeline
+        sid = pipeline.create_scan({
+            "model": "tiny", "num_prompts": 2, "seed": 42,
+            "categories": ["normal"], "layers": 3,
+            "max_seq_len": 8, "max_new_tokens": 2,
+        })
+        st = pipeline.execute_scan(sid)
+        assert st["status"] == "COMPLETED"
+
+        from src.reporting.pdf_generator import generate_pdf_report
+        path = generate_pdf_report(pdf_path)
+        assert os.path.exists(path)
+        assert os.path.getsize(path) > 1000, "PDF too small for real content"
+
+        # The report row is logged with the producing scan id.
+        from src.db import db_manager
+        from src.db.models import Report
+        session = db_manager.get_session()
         try:
-            from src.reporting.pdf_generator import generate_pdf_report
-            path = generate_pdf_report(pdf_path)
-            assert os.path.exists(path)
-            assert os.path.getsize(path) > 100
+            row = session.query(Report).order_by(Report.report_id.desc()).first()
+            assert row is not None
+            assert row.scan_id == sid
+            assert row.format == "pdf"
+            assert os.path.exists(row.file_path)
         finally:
-            if "NEUROFENCE_REPORTS_DIR" in os.environ:
-                del os.environ["NEUROFENCE_REPORTS_DIR"]
+            session.close()
+    finally:
+        if "NEUROFENCE_DB_PATH" in os.environ:
+            del os.environ["NEUROFENCE_DB_PATH"]
+        if "NEUROFENCE_REPORTS_DIR" in os.environ:
+            del os.environ["NEUROFENCE_REPORTS_DIR"]
 
 
 # ---------------------------------------------------------------------------
@@ -306,9 +335,30 @@ def test_desktop_imports():
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
     from PyQt5.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
-    from src.desktop.main_window import MainWindow
+    from src.desktop.main_window import MainWindow, NAV_GROUPS
     win = MainWindow()
-    assert win.tabs.count() == 5
+    # SOC nav: OVERVIEW / INVESTIGATE / FORENSICS / MODELS / REPORTING / SYSTEM
+    nav_keys = [key for _group, items in NAV_GROUPS for key, _g, _l in items]
+    assert set(nav_keys) == {
+        "dashboard", "new_investigation", "investigations",
+        "findings", "analysis", "scan_history",
+        "models", "model_scanner", "reports",
+        "settings", "audit",
+    }
+    # every nav key has a real sidebar button; the detail page does not
+    for key in nav_keys:
+        assert key in win._sidebar._buttons, f"missing nav button {key}"
+    assert "model_detail" not in win._sidebar._buttons
+    # hidden ModelDetailView page (never exposed in the nav)
+    details_present = any(
+        getattr(win.stack.widget(i), "__class__", None) is not None and
+        win.stack.widget(i).__class__.__name__ == "ModelDetailView"
+        for i in range(win.stack.count())
+    )
+    assert details_present, "hidden ModelDetailView page not in the stack"
+    # the header workflow strip exists and can render
+    win.show()
+    app.processEvents()
     win.close()
 
 
