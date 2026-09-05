@@ -55,7 +55,7 @@ without any network access.
   backdoors lets teams learn what detection looks like before pointing
   the pipeline at a real model.
 
-## 5. Novel Idea
+## 5. Solution
 
 NeuroFence combines a **model sandbox** (safe file introspection,
 SHA-256 hashing, metadata persistence), an **adversarial fuzzer**
