@@ -1,15 +1,48 @@
+from security.logger import SecurityLogger
+from security.decision_engine import SecurityDecisionEngine
 from model.loader import load_model
+from model.activation_tracker import ActivationTracker
+from model.anomaly_detector import ActivationAnomalyDetector
 
 
 def run_sandbox(prompt):
     """
-    Run a prompt through the local LLM.
+    Run a prompt through the local LLM and analyze
+    Transformer activations for anomalies.
     """
 
     tokenizer, model = load_model()
 
-    inputs = tokenizer(prompt, return_tensors="pt")
+    # Start activation tracking
+    tracker = ActivationTracker(model)
+    tracker.register_hooks()
 
+    # Load baseline detector
+    detector = ActivationAnomalyDetector()
+    decision_engine = SecurityDecisionEngine()
+    logger = SecurityLogger()
+
+    # Convert prompt into tokens
+    inputs = tokenizer(
+        prompt,
+        return_tensors="pt"
+    )
+
+    # Run model once to collect activations
+    model(**inputs)
+
+    activations = tracker.get_activations()
+
+    # Analyze activations against normal baseline
+    analysis = detector.analyze(activations)
+    decision = decision_engine.decide(analysis)
+    logger.log_event(
+    prompt,
+    analysis,
+    decision
+)
+
+    # Generate response
     outputs = model.generate(
         **inputs,
         max_new_tokens=50,
@@ -19,11 +52,21 @@ def run_sandbox(prompt):
         pad_token_id=tokenizer.eos_token_id
     )
 
+    # Decode only newly generated tokens
+    input_length = inputs["input_ids"].shape[1]
+
+    generated_tokens = outputs[0][input_length:]
+
     response = tokenizer.decode(
-        outputs[0],
+        generated_tokens,
         skip_special_tokens=True
-    )
+    ).strip()
 
-    response = response[len(prompt):].strip()
+    # Remove hooks
+    tracker.remove_hooks()
 
-    return response
+    return {
+        "response": response,
+        "security": analysis,
+	"decision": decision
+    }

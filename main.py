@@ -10,10 +10,20 @@ def main():
 
     print("\nRunning model...\n")
 
-    response = run_sandbox(prompt)
+    result = run_sandbox(prompt)
 
-    print("Response:")
-    print(response)
+    security = result["security"]
+    decision = result["decision"]
+
+    print("Security Analysis:")
+    print(f"Status : {security['status']}")
+    print(f"Score  : {security['score']}")
+
+    print("\nSecurity Decision:")
+    print(f"Action : {decision['action']}")
+
+    print("\nResponse:")
+    print(result["response"])
 
 
 if __name__ == "__main__":

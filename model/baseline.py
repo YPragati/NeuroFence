@@ -1,3 +1,4 @@
+
 import json
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -49,9 +50,15 @@ def collect_baseline():
 
         activations = tracker.get_activations()
 
+        # Make an independent copy for this prompt
+        activation_snapshot = {
+            layer: stats.copy()
+            for layer, stats in activations.items()
+        }
+
         baseline_data.append({
             "prompt": prompt,
-            "activations": activations
+            "activations": activation_snapshot
         })
 
     tracker.remove_hooks()
