@@ -36,11 +36,12 @@ def run_sandbox(prompt):
     # Analyze activations against normal baseline
     analysis = detector.analyze(activations)
     decision = decision_engine.decide(analysis)
+
     logger.log_event(
-    prompt,
-    analysis,
-    decision
-)
+        prompt,
+        analysis,
+        decision
+    )
 
     # Generate response
     outputs = model.generate(
@@ -52,13 +53,9 @@ def run_sandbox(prompt):
         pad_token_id=tokenizer.eos_token_id
     )
 
-    # Decode only newly generated tokens
-    input_length = inputs["input_ids"].shape[1]
-
-    generated_tokens = outputs[0][input_length:]
-
+    # Decode generated response
     response = tokenizer.decode(
-        generated_tokens,
+        outputs[0],
         skip_special_tokens=True
     ).strip()
 
@@ -68,5 +65,5 @@ def run_sandbox(prompt):
     return {
         "response": response,
         "security": analysis,
-	"decision": decision
+        "decision": decision
     }

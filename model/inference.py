@@ -1,4 +1,4 @@
-from loader import load_model
+from model.loader import load_model
 
 print("Starting NeuroFence inference...")
 
