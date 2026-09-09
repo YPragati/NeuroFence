@@ -1,0 +1,8 @@
+{
+  "name": "NeuroFence Synthetic Toy Model (simulated)",
+  "model_type": "toy_model",
+  "architecture": "Rule-based synthetic toy model (simulated)",
+  "num_parameters": 0,
+  "layers": 0,
+  "description": "Fully local, deterministic, rule-based SIMULATED model used to validate NeuroFence's pipeline safely. Contains synthetic backdoor triggers (e.g. 'Pineapple') for defensive testing only."
+}
